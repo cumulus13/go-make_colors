@@ -1,0 +1,115 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# PyInstaller
+*.manifest
+*.spec
+
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+.hypothesis/
+.pytest_cache/
+
+# Environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+*sublime*
+# Added entries (1 items)
+main_go*
+
+# Added entries (1 items)
+pt.exe
+
+# Added entries (1 items)
+gitignore_backup
+
+# Added entries (1 items)
+backup/
+
+# Added entries (1 items)
+README1.md
+
+# Added entries (1 items)
+build.bat
+
+# Added entries (1 items)
+.pt/
+
+# Added entries (1 items)
+*dirhtml/
+
+# Added entries (1 items)
+docs.1/
+
+# Added entries (1 items)
+docs.2/
+
+# Added entries (1 items)
+*.log
+
+# Added entries (1 items)
+README.html
+
+# Added entries (1 items)
+notif.png
+
+# Added entries (1 items)
+pt_*.ico
+
+# Added entries (1 items)
+*.txt
+
+# Added entries (1 items)
+SMART_MOVE_INTEGRATION.md
