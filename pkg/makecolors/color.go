@@ -2,26 +2,22 @@ package makecolors
 
 import "fmt"
 
-// Color holds a pre-computed ANSI sequence for a foreground+background combination.
-// It can be used as a formatter for multiple strings without re-parsing the spec.
+// Color holds a pre-computed ANSI sequence for a fg+bg+attrs combination.
+// Foreground and Background accept named colors, abbreviations, or hex strings.
 //
-// Example:
-//
-//	c := makecolors.NewColor("red", "black")
-//	fmt.Println(c.Format("Error!"))
-//	fmt.Println(c.Sprintf("Exit code: %d", 1))
+//	c := NewColor("red", "black")
+//	c := NewColor("#FF0000", "#000000")
+//	c := NewColor("white", "red", "bold")
 type Color struct {
-	spec  ColorSpec
-	open  string // opening ANSI sequence
+	spec ColorSpec
+	open string // pre-built opening ANSI sequence
 }
 
-// NewColor creates a Color for the given foreground and optional background.
+// NewColor creates a Color for the given foreground, optional background, and
+// optional attribute list. fg and bg may be named colors or hex strings.
 func NewColor(foreground, background string, attrs ...string) *Color {
 	spec := GetSort("", foreground, background, attrs)
-	return &Color{
-		spec: spec,
-		open: buildANSI(spec.Foreground, spec.Background, spec.Attrs),
-	}
+	return &Color{spec: spec, open: buildANSI(spec)}
 }
 
 // Format wraps text in this Color's ANSI sequence.
@@ -43,18 +39,17 @@ func (c *Color) ANSIOpen() string { return c.open }
 // Spec returns the resolved ColorSpec.
 func (c *Color) Spec() ColorSpec { return c.spec }
 
-// String implements fmt.Stringer, returning the opening sequence.
-// This allows a Color to be used directly in format strings alongside text.
+// String implements fmt.Stringer, returning the opening sequence so a Color
+// can be used directly in format strings.
 func (c *Color) String() string { return c.open }
 
-// Colors is an alias for Color kept for naming compatibility with the Python API.
+// Colors is an alias kept for naming compatibility.
 type Colors = Color
 
 // NewColors is an alias for NewColor.
 var NewColors = NewColor
 
-// ─── Pre-built color singletons ───────────────────────────────────────────────
-// These are lazily constructed on first call to avoid init-order issues.
+// ─── Pre-built singletons ─────────────────────────────────────────────────────
 
 var (
 	ColorRed          = NewColor("red", "")

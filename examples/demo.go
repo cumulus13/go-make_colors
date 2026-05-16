@@ -1,6 +1,6 @@
 //go:build ignore
 
-// examples/demo.go – run with: go run examples/demo.go
+// Run with: go run examples/demo.go
 package main
 
 import (
@@ -8,110 +8,99 @@ import (
 	"os"
 
 	"github.com/cumulus13/go-make_colors/pkg/hexansi"
-	"github.com/cumulus13/go-make_colors/pkg/makecolors"
+	. "github.com/cumulus13/go-make_colors/pkg/makecolors" // dot-import = Python-style bare names
 	"github.com/cumulus13/go-make_colors/pkg/syntax"
 )
 
 func main() {
-	// Force colors so this demo renders even when stdout is redirected.
 	os.Setenv("MAKE_COLORS_FORCE", "1")
 
 	sep := func(title string) {
 		fmt.Println()
-		fmt.Println(makecolors.Sprint("════════════════════════════════════════", "lightcyan", "", "bold"))
-		fmt.Println(makecolors.Sprint("  "+title, "lightcyan", "", "bold"))
-		fmt.Println(makecolors.Sprint("════════════════════════════════════════", "lightcyan", "", "bold"))
+		line := "════════════════════════════════════════════════"
+		fmt.Println(Sprint(line, "lightcyan", "", "bold"))
+		fmt.Println(Sprint("  "+title, "lightcyan", "", "bold"))
+		fmt.Println(Sprint(line, "lightcyan", "", "bold"))
 	}
 
-	// ── Functional helpers ────────────────────────────────────────────────────
-	sep("Functional Helpers")
-	fmt.Println(makecolors.Red("Red()"))
-	fmt.Println(makecolors.Green("Green()"))
-	fmt.Println(makecolors.Blue("Blue()"))
-	fmt.Println(makecolors.Yellow("Yellow()"))
-	fmt.Println(makecolors.Magenta("Magenta()"))
-	fmt.Println(makecolors.Cyan("Cyan()"))
-	fmt.Println(makecolors.LightRed("LightRed()"))
-	fmt.Println(makecolors.LightGreen("LightGreen()"))
-	fmt.Println(makecolors.LightBlue("LightBlue()"))
-	fmt.Println(makecolors.Bold("Bold()"))
-	fmt.Println(makecolors.Italic("Italic()"))
-	fmt.Println(makecolors.Underline("Underline()"))
-	fmt.Println(makecolors.Strikethrough("Strikethrough()"))
+	// ── Options is always optional ────────────────────────────────────────────
+	sep("Options is always optional")
 
-	// ── Sprint ────────────────────────────────────────────────────────────────
-	sep("Sprint(text, fg, bg, attrs...)")
-	fmt.Println(makecolors.Sprint("White on red, bold", "white", "red", "bold"))
-	fmt.Println(makecolors.Sprint("Lightblue on black", "lightblue", "black"))
-	fmt.Println(makecolors.Sprint("Bold + underline", "green", "", "bold", "underline"))
+	fmt.Println(MakeColors("No options at all — plain passthrough"))
+	fmt.Println(MakeColors("Empty Options{} — default white", Options{}))
+	fmt.Println(MakeColors("Only Force=true", Options{Force: true}))
+
+	// ── Named colors ──────────────────────────────────────────────────────────
+	sep("Named colors in Options")
+
+	fmt.Println(MakeColors("Named fg only",    Options{Foreground: "cyan"}))
+	fmt.Println(MakeColors("Named fg+bg",       Options{Foreground: "white", Background: "blue"}))
+	fmt.Println(MakeColors("Named fg+attrs",    Options{Foreground: "red", Attrs: []string{"bold"}}))
+
+	// ── Hex colors in Options ─────────────────────────────────────────────────
+	sep("Hex colors in Options{Foreground / Background}")
+
+	fmt.Println(MakeColors("Hello in Cyan",          Options{Foreground: "#00FFFF"}))
+	fmt.Println(MakeColors("Red hex fg",              Options{Foreground: "#FF0000"}))
+	fmt.Println(MakeColors("Short hex #F00",          Options{Foreground: "#F00"}))
+	fmt.Println(MakeColors("No-hash hex FF6347",      Options{Foreground: "FF6347"}))
+	fmt.Println(MakeColors("Hex fg + named bg",       Options{Foreground: "#FF69B4", Background: "black"}))
+	fmt.Println(MakeColors("Named fg + hex bg",       Options{Foreground: "white",   Background: "#8B0000"}))
+	fmt.Println(MakeColors("Both hex",                Options{Foreground: "#00FFFF", Background: "#FF0000"}))
+	fmt.Println(MakeColors("Hex + bold attr",         Options{Foreground: "#FFD700", Attrs: []string{"bold"}}))
+	fmt.Println(MakeColors("Hex fg + bg + italic",    Options{
+		Foreground: "#00FF7F",
+		Background: "#000080",
+		Attrs:      []string{"italic"},
+	}))
+
+	// ── Sprint with hex ───────────────────────────────────────────────────────
+	sep("Sprint(text, fg, bg, attrs...) with hex")
+
+	fmt.Println(Sprint("Sprint hex fg",      "#00FFFF", ""))
+	fmt.Println(Sprint("Sprint hex bg",      "white",   "#8B008B"))
+	fmt.Println(Sprint("Sprint both hex",    "#FFFF00", "#000080"))
+	fmt.Println(Sprint("Sprint hex + bold",  "#FF6347", "",       "bold"))
 
 	// ── Combined format strings ───────────────────────────────────────────────
-	sep("Combined Format Strings (Foreground field)")
-	combos := []string{
-		"red-yellow",
-		"bold-red-black",
-		"italic_blue_white",
-		"underline,green,black",
-		"bold-underline-white-red",
-		"lb_r",   // lightblue on red
-		"dim_w",  // dim white
-	}
-	for _, combo := range combos {
-		s := makecolors.MakeColors("Sample text", makecolors.Options{Foreground: combo, Force: true})
-		fmt.Printf("  %-30s → %s\n", combo, s)
-	}
+	sep("Combined format strings")
 
-	// ── Rich markup ───────────────────────────────────────────────────────────
-	sep("Rich Markup")
-	markupExamples := []string{
-		"[red]Simple red[/]",
-		"[bold green]Bold green[/]",
-		"[white on blue]White on blue[/]",
-		"[bold italic yellow on black]Bold italic yellow on black[/]",
-		"[underline lightcyan]Underlined light cyan[/]",
-		"[bold white on red][FATAL][/] [lightred]System crash[/]",
-		`[green]\[OK\] Escaped brackets in content[/]`,
-	}
-	for _, ex := range markupExamples {
-		fmt.Println(makecolors.MakeColors(ex, makecolors.Options{Force: true}))
-	}
+	fmt.Println(MakeColors("bold-red",           Options{Foreground: "bold-red"}))
+	fmt.Println(MakeColors("italic-blue-yellow",  Options{Foreground: "italic_blue_yellow"}))
+	fmt.Println(MakeColors("lb_r abbreviations",  Options{Foreground: "lb_r"}))
 
-	// ── Hex colors ────────────────────────────────────────────────────────────
-	sep("Hex Colors")
-	hexExamples := []string{
-		"[#FF0000]Pure red hex[/]",
-		"[#00FF00]Pure green hex[/]",
-		"[#0000FF]Pure blue hex[/]",
-		"[#FF6347]Tomato[/]",
-		"[bold #FF69B4 on #000000]Hot pink on black[/]",
-		"[#FFFFFF on #800080]White on purple[/]",
-	}
-	for _, ex := range hexExamples {
-		fmt.Println(makecolors.MakeColors(ex, makecolors.Options{Force: true}))
-	}
+	// ── Rich markup — no Options needed ──────────────────────────────────────
+	sep("Rich markup (Options optional)")
 
-	// ── Color type ────────────────────────────────────────────────────────────
-	sep("Color / Colors Objects")
-	errColor := makecolors.NewColor("white", "red", "bold")
-	warnColor := makecolors.NewColor("black", "yellow")
-	infoColor := makecolors.NewColor("white", "blue")
+	fmt.Println(MakeColors("[red]No Options needed[/]"))
+	fmt.Println(MakeColors("[bold green on black]Bold green[/]"))
+	fmt.Println(MakeColors("[bold white on red][ERROR][/] [lightred]something failed[/]"))
+	fmt.Println(MakeColors("[#00FFFF]Hex in markup[/]"))
+	fmt.Println(MakeColors("[bold #FF6347 on #000000]Hex markup bold[/]"))
 
-	fmt.Println(errColor.Format("  This is an error"))
-	fmt.Println(warnColor.Format("  This is a warning"))
-	fmt.Println(infoColor.Format("  This is informational"))
-	fmt.Println(errColor.Sprintf("  Exit code: %d", 127))
+	// ── Dot-import: bare function names (Python-style) ────────────────────────
+	sep("Dot-import bare names (. \"…/makecolors\")")
 
-	// Use as format verb
-	fmt.Printf("  %s%s%s\n", errColor, "Raw ANSI usage", makecolors.Reset)
+	fmt.Println(Red("Red()"))
+	fmt.Println(Green("Green()"))
+	fmt.Println(Cyan("Cyan()"))
+	fmt.Println(LightBlue("LightBlue()"))
+	fmt.Println(Bold("Bold()"))
+	fmt.Println(Underline("Underline()"))
 
-	// Pre-built singletons
-	fmt.Println(makecolors.ColorRed.Format("  ColorRed singleton"))
-	fmt.Println(makecolors.ColorLightGreen.Format("  ColorLightGreen singleton"))
-	fmt.Println(makecolors.ColorBold.Format("  ColorBold singleton"))
+	// ── NewColor with hex ─────────────────────────────────────────────────────
+	sep("NewColor with hex")
+
+	tomato  := NewColor("#FF6347", "#000000")
+	skyblue := NewColor("#87CEEB", "", "bold")
+	fmt.Println(tomato.Format("  Tomato on black"))
+	fmt.Println(skyblue.Format("  Bold sky blue"))
+	fmt.Println(tomato.Sprintf("  Exit code: %d", 1))
 
 	// ── Console helper ────────────────────────────────────────────────────────
-	sep("Console Helper")
-	c := makecolors.NewConsole(os.Stdout)
+	sep("Console helper")
+
+	c := NewConsole(os.Stdout)
 	c.Force = true
 	c.Error("  c.Error()")
 	c.Warn("  c.Warn()")
@@ -119,107 +108,33 @@ func main() {
 	c.Success("  c.Success()")
 	c.Debug("  c.Debug()")
 	c.Status("ERROR", "Database unavailable", "white", "red")
-	c.Status("INFO", "Server started on :8080", "white", "blue")
-	c.Rich("[bold cyan]  c.Rich()[/] with [italic yellow]inline markup[/]")
-
-	// ── GetSort / ColorSpec ───────────────────────────────────────────────────
-	sep("GetSort / ColorSpec")
-	specs := []struct{ data, fg, bg string }{
-		{"red-yellow", "", ""},
-		{"bold-red-black", "", ""},
-		{"", "lb", "r"},
-		{"italic-blue-white", "", ""},
-		{"", "white", "on_red"},
-	}
-	for _, s := range specs {
-		spec := makecolors.GetSort(s.data, s.fg, s.bg, nil)
-		desc := s.data
-		if desc == "" {
-			desc = fmt.Sprintf("fg=%q bg=%q", s.fg, s.bg)
-		}
-		colored := makecolors.Colorize("████", spec)
-		fmt.Printf("  %-28s → fg=%-14s bg=%-14s attrs=%v %s\n",
-			desc, spec.Foreground, spec.Background, spec.Attrs, colored)
-	}
-
-	// ── StripANSI ─────────────────────────────────────────────────────────────
-	sep("StripANSI")
-	colored := makecolors.MakeColors("[bold red]Colorful text[/]", makecolors.Options{Force: true})
-	plain := makecolors.StripANSI(colored)
-	fmt.Printf("  Colored  : %s\n", colored)
-	fmt.Printf("  Plain    : %q\n", plain)
+	c.Rich("[bold #00FFFF]Hex color[/] in [italic yellow]Rich()[/]")
 
 	// ── hexansi package ───────────────────────────────────────────────────────
-	sep("hexansi Package")
+	sep("hexansi package")
 
-	for _, hex := range []string{"#FF0000", "#FFA500", "#FFFF00", "#008000", "#0000FF", "#800080"} {
-		res, _ := hexansi.Convert(hex, hexansi.ModeTrueColor)
-		name, _ := hexansi.HexToColorName(hex)
-		fmt.Printf("  %s██%s  %-10s  %s\n", res.FG, hexansi.Reset, hex, name)
+	for _, h := range []string{"#FF0000", "#FFA500", "#00FFFF", "#008000", "#0000FF", "#FF69B4"} {
+		res, _ := hexansi.Convert(h, hexansi.ModeTrueColor)
+		name, _ := hexansi.HexToColorName(h)
+		fmt.Printf("  %s██%s  %-10s  %s\n", res.FG, hexansi.Reset, h, name)
 	}
 
-	fmt.Println()
-	for _, name := range []string{"red", "orange", "green", "blue", "purple", "pink", "gold"} {
-		hex, err := hexansi.NameToHex(name)
-		if err != nil {
-			continue
-		}
-		res, _ := hexansi.Convert(hex, hexansi.ModeTrueColor)
-		fmt.Printf("  %s██%s  %-12s → %s\n", res.FG, hexansi.Reset, name, hex)
-	}
+	// ── Syntax highlight ──────────────────────────────────────────────────────
+	sep("Syntax highlighting")
 
-	// ── Syntax highlighting ───────────────────────────────────────────────────
-	sep("Syntax Highlighting")
 	code := `package main
 
 import "fmt"
 
 func main() {
-    msg := "Hello, World!"
-    fmt.Println(msg)
+    fmt.Println("Hello, World!")
 }`
-	opts := syntax.Options{
+	syntax.Print(code, syntax.Options{
 		Lexer:       "go",
 		Theme:       "monokai",
 		LineNumbers: syntax.LineNumberAbsolute,
-		StartLine:   1,
 		TrueColor:   true,
-	}
-	if err := syntax.Print(code, opts); err != nil {
-		fmt.Fprintf(os.Stderr, "syntax error: %v\n", err)
-	}
-
-	// ── Log-level simulation ──────────────────────────────────────────────────
-	sep("Log Level Simulation")
-	logLines := []string{
-		"[bold white on black][DEBUG][/] [cyan]Cache miss for key user:1234[/]",
-		"[bold blue on black][INFO] [/] [white]HTTP GET /api/users 200 OK[/]",
-		"[bold yellow on black][WARN] [/] [lightyellow]Response time > 500ms[/]",
-		"[bold white on red][ERROR][/] [lightred]Failed to connect: timeout[/]",
-		"[bold white on red][FATAL][/] [white on red]Out of memory – shutting down[/]",
-	}
-	for _, line := range logLines {
-		fmt.Println(makecolors.MakeColors(line, makecolors.Options{Force: true}))
-	}
-
-	// ── Progress bar ──────────────────────────────────────────────────────────
-	sep("Progress Bar Simulation")
-	for i := 0; i <= 20; i += 4 {
-		pct := i * 5
-		var color string
-		switch {
-		case pct < 30:
-			color = "red"
-		case pct < 70:
-			color = "yellow"
-		default:
-			color = "green"
-		}
-		filled := string([]rune("█████████████████████")[:i])
-		empty := string([]rune("░░░░░░░░░░░░░░░░░░░░░")[: 20-i])
-		bar := makecolors.Sprint(fmt.Sprintf("[%s%s] %3d%%", filled, empty, pct), color, "", "bold")
-		fmt.Println("  " + bar)
-	}
+	})
 
 	sep("Done ✓")
 }

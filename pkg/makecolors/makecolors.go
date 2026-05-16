@@ -2,14 +2,16 @@
 // ANSI escape codes, rich console markup, hex colors, and cross-platform
 // compatibility (Windows 10+, Linux, macOS).
 //
-// Features:
-//   - Standard and light foreground/background colors
-//   - Color abbreviations (r, g, bl, lb, ...)
-//   - Combined format strings ("red-yellow", "bold-red", "lb_r")
-//   - Rich markup: "[bold red on yellow]text[/]"
-//   - Hex color support in markup: "[#FF0000 on #00FF00]text[/]"
-//   - Text attributes: bold, dim, italic, underline, blink, reverse, strikethrough
-//   - Environment variable controls: MAKE_COLORS, MAKE_COLORS_FORCE, MAKE_COLORS_DEBUG
+// # Calling styles
+//
+//	MakeColors("text")                                       // no color, plain
+//	MakeColors("text", Options{Foreground: "red"})           // named color
+//	MakeColors("text", Options{Foreground: "#FF0000"})       // hex foreground
+//	MakeColors("text", Options{Foreground: "#F00", Background: "#00FFFF"}) // hex fg+bg
+//	MakeColors("[bold red]text[/]")                          // rich markup, no Options needed
+//
+// Options is always optional — omit it entirely when using rich markup or
+// when you just want plain text pass-through.
 //
 // Author: Hadi Cahyadi <cumulus13@gmail.com>
 // License: MIT
@@ -27,7 +29,6 @@ import (
 
 // ─── ANSI code tables ──────────────────────────────────────────────────────────
 
-// fgCodes maps color names to their ANSI foreground codes.
 var fgCodes = map[string]string{
 	"black":        "30",
 	"red":          "31",
@@ -48,45 +49,43 @@ var fgCodes = map[string]string{
 	"lightwhite":   "97",
 }
 
-// bgCodes maps color names to their ANSI background codes.
 var bgCodes = map[string]string{
-	"black":          "40",
-	"red":            "41",
-	"green":          "42",
-	"yellow":         "43",
-	"blue":           "44",
-	"magenta":        "45",
-	"cyan":           "46",
-	"white":          "47",
-	"on_black":       "40",
-	"on_red":         "41",
-	"on_green":       "42",
-	"on_yellow":      "43",
-	"on_blue":        "44",
-	"on_magenta":     "45",
-	"on_cyan":        "46",
-	"on_white":       "47",
-	"lightblack":     "100",
-	"lightgrey":      "100",
-	"lightred":       "101",
-	"lightgreen":     "102",
-	"lightyellow":    "103",
-	"lightblue":      "104",
-	"lightmagenta":   "105",
-	"lightcyan":      "106",
-	"lightwhite":     "107",
-	"on_lightblack":  "100",
-	"on_lightgrey":   "100",
-	"on_lightred":    "101",
-	"on_lightgreen":  "102",
-	"on_lightyellow": "103",
-	"on_lightblue":   "104",
+	"black":           "40",
+	"red":             "41",
+	"green":           "42",
+	"yellow":          "43",
+	"blue":            "44",
+	"magenta":         "45",
+	"cyan":            "46",
+	"white":           "47",
+	"on_black":        "40",
+	"on_red":          "41",
+	"on_green":        "42",
+	"on_yellow":       "43",
+	"on_blue":         "44",
+	"on_magenta":      "45",
+	"on_cyan":         "46",
+	"on_white":        "47",
+	"lightblack":      "100",
+	"lightgrey":       "100",
+	"lightred":        "101",
+	"lightgreen":      "102",
+	"lightyellow":     "103",
+	"lightblue":       "104",
+	"lightmagenta":    "105",
+	"lightcyan":       "106",
+	"lightwhite":      "107",
+	"on_lightblack":   "100",
+	"on_lightgrey":    "100",
+	"on_lightred":     "101",
+	"on_lightgreen":   "102",
+	"on_lightyellow":  "103",
+	"on_lightblue":    "104",
 	"on_lightmagenta": "105",
-	"on_lightcyan":   "106",
-	"on_lightwhite":  "107",
+	"on_lightcyan":    "106",
+	"on_lightwhite":   "107",
 }
 
-// attrCodes maps attribute names to their ANSI codes.
 var attrCodes = map[string]string{
 	"bold":          "1",
 	"dim":           "2",
@@ -98,7 +97,6 @@ var attrCodes = map[string]string{
 	"strike":        "9",
 }
 
-// abbreviations maps short color codes to full color names.
 var abbreviations = map[string]string{
 	"b":  "black",
 	"bk": "black",
@@ -132,7 +130,6 @@ var abbreviations = map[string]string{
 	"lk": "lightblack",
 }
 
-// knownAttrs is the ordered list of recognizable text attributes.
 var knownAttrs = []string{
 	"bold", "dim", "italic", "underline", "blink", "reverse", "strikethrough", "strike",
 }
@@ -140,7 +137,7 @@ var knownAttrs = []string{
 // Reset is the ANSI reset sequence.
 const Reset = "\x1b[0m"
 
-// ─── Environment helpers ────────────────────────────────────────────────────────
+// ─── Environment helpers ───────────────────────────────────────────────────────
 
 func envIs(key string, vals ...string) bool {
 	v := os.Getenv(key)
@@ -152,7 +149,7 @@ func envIs(key string, vals ...string) bool {
 	return false
 }
 
-func debugEnabled() bool { return envIs("MAKE_COLORS_DEBUG", "1", "true", "True") }
+func debugEnabled() bool  { return envIs("MAKE_COLORS_DEBUG", "1", "true", "True") }
 func colorDisabled() bool { return envIs("MAKE_COLORS", "0") }
 func colorForced() bool   { return envIs("MAKE_COLORS_FORCE", "1", "True") }
 
@@ -161,16 +158,13 @@ func colorForced() bool   { return envIs("MAKE_COLORS_FORCE", "1", "True") }
 // SupportsColor reports whether the current terminal supports ANSI color output.
 func SupportsColor() bool {
 	if runtime.GOOS == "windows" {
-		// On Windows 10 1511+ VT processing is supported; we trust the env.
 		if os.Getenv("ANSICON") != "" || os.Getenv("ConEmuANSI") == "ON" {
 			return true
 		}
-		// Check TERM or WT_SESSION (Windows Terminal)
 		if os.Getenv("WT_SESSION") != "" {
 			return true
 		}
 	}
-	// Standard Unix TTY check via file stat
 	fi, err := os.Stdout.Stat()
 	if err != nil {
 		return false
@@ -178,10 +172,52 @@ func SupportsColor() bool {
 	return (fi.Mode() & os.ModeCharDevice) != 0
 }
 
+// ─── isHexColor ───────────────────────────────────────────────────────────────
+
+// isHexColor reports whether s looks like a hex color (#RGB, #RRGGBB, RGB, RRGGBB).
+func isHexColor(s string) bool {
+	s = strings.TrimPrefix(s, "#")
+	if len(s) != 3 && len(s) != 6 {
+		return false
+	}
+	for _, c := range s {
+		if !((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F')) {
+			return false
+		}
+	}
+	return true
+}
+
+// ─── Hex → raw ANSI ───────────────────────────────────────────────────────────
+
+// hexToFG converts a hex color string to a raw truecolor foreground ANSI sequence.
+// Returns ("", false) if the input is not a valid hex color.
+func hexToFG(color string) (string, bool) {
+	if !isHexColor(color) {
+		return "", false
+	}
+	res, err := hexansi.Convert(color, hexansi.ModeTrueColor)
+	if err != nil {
+		return "", false
+	}
+	return res.FG, true
+}
+
+// hexToBG converts a hex color string to a raw truecolor background ANSI sequence.
+func hexToBG(color string) (string, bool) {
+	if !isHexColor(color) {
+		return "", false
+	}
+	res, err := hexansi.Convert(color, hexansi.ModeTrueColor)
+	if err != nil {
+		return "", false
+	}
+	return res.BG, true
+}
+
 // ─── Color map / abbreviation expansion ───────────────────────────────────────
 
 // ColorMap expands short color codes to their full names.
-// Returns the input unchanged if it is already a full name or unknown short code.
 func ColorMap(color string) string {
 	if color == "" {
 		return color
@@ -196,8 +232,6 @@ func ColorMap(color string) string {
 
 var delimRe = regexp.MustCompile(`[-_,]+`)
 
-// extractAttrs strips recognized attribute tokens from a color string and
-// returns the cleaned string together with the found attribute names.
 func extractAttrs(text string) (string, []string) {
 	if text == "" {
 		return text, nil
@@ -215,16 +249,14 @@ func extractAttrs(text string) (string, []string) {
 			cleaned = re.ReplaceAllString(cleaned, "")
 		}
 	}
-	// Collapse leftover delimiters
 	cleaned = delimRe.ReplaceAllString(cleaned, "-")
 	cleaned = strings.Trim(cleaned, "-_,")
 	return strings.TrimSpace(cleaned), found
 }
 
-// uniqueAttrs returns a deduplicated slice preserving order.
 func uniqueAttrs(in []string) []string {
 	seen := make(map[string]bool, len(in))
-	out := in[:0:0]
+	var out []string
 	for _, a := range in {
 		if !seen[a] {
 			seen[a] = true
@@ -234,23 +266,22 @@ func uniqueAttrs(in []string) []string {
 	return out
 }
 
-// ─── GetSort ──────────────────────────────────────────────────────────────────
+// ─── ColorSpec & GetSort ───────────────────────────────────────────────────────
 
-// ColorSpec is the result of parsing a color specification.
+// ColorSpec is the fully resolved color specification.
+// Foreground and Background may be either a named color ("red") or a raw ANSI
+// escape sequence (when a hex color was supplied).
 type ColorSpec struct {
-	Foreground string
-	Background string // empty string means "none"
-	Attrs      []string
+	Foreground   string
+	Background   string
+	Attrs        []string
+	fgIsRaw      bool // true = Foreground is already a complete ANSI sequence
+	bgIsRaw      bool // true = Background is already a complete ANSI sequence
 }
 
 // GetSort parses a combined color specification string and returns a ColorSpec.
-//
-// The data parameter may use any of:
-//   - "red-yellow"         → fg=red, bg=yellow
-//   - "bold-red-black"     → fg=red, bg=black, attrs=[bold]
-//   - "r_b"                → fg=red, bg=black (abbreviations)
-//   - "lightblue"          → fg=lightblue
-//   - "[bold red on blue]" → handled by the rich parser upstream
+// Each of foreground and background may be a named color, an abbreviation,
+// a combined "fg-bg" string, or a hex color ("#FF0000").
 func GetSort(data, foreground, background string, attrs []string) ColorSpec {
 	detected := append([]string(nil), attrs...)
 
@@ -260,11 +291,9 @@ func GetSort(data, foreground, background string, attrs []string) ColorSpec {
 		detected = append(detected, dataAttrs...)
 
 		if strings.ContainsAny(data, "-_,") {
-			parts := delimRe.Split(data, -1)
-			parts = nonEmpty(parts)
+			parts := nonEmpty(delimRe.Split(data, -1))
 			switch len(parts) {
 			case 0:
-				// nothing
 			case 1:
 				foreground = parts[0]
 			default:
@@ -276,7 +305,6 @@ func GetSort(data, foreground, background string, attrs []string) ColorSpec {
 		}
 	}
 
-	// Strip attrs from explicit fg/bg strings
 	if foreground != "" {
 		var fgAttrs []string
 		foreground, fgAttrs = extractAttrs(foreground)
@@ -288,20 +316,17 @@ func GetSort(data, foreground, background string, attrs []string) ColorSpec {
 		detected = append(detected, bgAttrs...)
 	}
 
-	// Handle nested delimiters in fg or bg after attr extraction
 	if foreground != "" && len(foreground) > 2 && strings.ContainsAny(foreground, "-_,") {
 		parts := nonEmpty(delimRe.Split(foreground, -1))
 		if len(parts) >= 2 {
-			foreground = parts[0]
-			background = parts[1]
+			foreground, background = parts[0], parts[1]
 		} else if len(parts) == 1 {
 			foreground = parts[0]
 		}
 	} else if background != "" && len(background) > 2 && strings.ContainsAny(background, "-_,") {
 		parts := nonEmpty(delimRe.Split(background, -1))
 		if len(parts) >= 2 {
-			foreground = parts[0]
-			background = parts[1]
+			foreground, background = parts[0], parts[1]
 		} else if len(parts) == 1 {
 			background = parts[0]
 		}
@@ -311,27 +336,44 @@ func GetSort(data, foreground, background string, attrs []string) ColorSpec {
 		foreground = "white"
 	}
 
-	// Expand abbreviations
-	if len(foreground) <= 2 {
+	// Expand abbreviations (only for non-hex values)
+	if !isHexColor(foreground) && len(foreground) <= 2 {
 		foreground = ColorMap(foreground)
 	}
-	if background != "" && len(background) <= 2 {
+	if background != "" && !isHexColor(background) && len(background) <= 2 {
 		background = ColorMap(background)
 	}
 
-	if debugEnabled() {
-		fmt.Fprintf(os.Stderr, "[DEBUG] GetSort → fg=%q bg=%q attrs=%v\n", foreground, background, detected)
-	}
-
-	return ColorSpec{
+	spec := ColorSpec{
 		Foreground: strings.TrimSpace(foreground),
 		Background: strings.TrimSpace(background),
 		Attrs:      uniqueAttrs(detected),
 	}
+
+	// Resolve hex colors to raw ANSI sequences immediately
+	if isHexColor(spec.Foreground) {
+		if raw, ok := hexToFG(spec.Foreground); ok {
+			spec.Foreground = raw
+			spec.fgIsRaw = true
+		}
+	}
+	if spec.Background != "" && isHexColor(spec.Background) {
+		if raw, ok := hexToBG(spec.Background); ok {
+			spec.Background = raw
+			spec.bgIsRaw = true
+		}
+	}
+
+	if debugEnabled() {
+		fmt.Fprintf(os.Stderr, "[DEBUG] GetSort → fg=%q(raw=%v) bg=%q(raw=%v) attrs=%v\n",
+			spec.Foreground, spec.fgIsRaw, spec.Background, spec.bgIsRaw, spec.Attrs)
+	}
+
+	return spec
 }
 
 func nonEmpty(ss []string) []string {
-	out := ss[:0:0]
+	var out []string
 	for _, s := range ss {
 		if t := strings.TrimSpace(s); t != "" {
 			out = append(out, t)
@@ -342,31 +384,60 @@ func nonEmpty(ss []string) []string {
 
 // ─── ANSI sequence builder ────────────────────────────────────────────────────
 
-// buildANSI constructs the opening ANSI escape sequence for the given color
-// specification. Returns an empty string if no codes apply.
-func buildANSI(fg, bg string, attrs []string) string {
-	var codes []string
+// buildANSI constructs the opening ANSI escape for the given ColorSpec.
+// Handles both named colors (looked up in tables) and raw sequences (hex colors).
+func buildANSI(spec ColorSpec) string {
+	// Fast path: both fg and bg are raw sequences — combine them with attr codes.
+	if spec.fgIsRaw || spec.bgIsRaw {
+		var sb strings.Builder
+		for _, a := range spec.Attrs {
+			if code, ok := attrCodes[a]; ok {
+				sb.WriteString("\x1b[" + code + "m")
+			}
+		}
+		if spec.bgIsRaw && spec.Background != "" {
+			sb.WriteString(spec.Background)
+		} else if !spec.bgIsRaw && spec.Background != "" {
+			bgKey := strings.TrimPrefix(spec.Background, "on_")
+			if code, ok := bgCodes[bgKey]; ok {
+				sb.WriteString("\x1b[" + code + "m")
+			} else if code, ok := bgCodes[spec.Background]; ok {
+				sb.WriteString("\x1b[" + code + "m")
+			}
+		}
+		if spec.fgIsRaw && spec.Foreground != "" {
+			sb.WriteString(spec.Foreground)
+		} else if !spec.fgIsRaw && spec.Foreground != "" {
+			if code, ok := fgCodes[spec.Foreground]; ok {
+				sb.WriteString("\x1b[" + code + "m")
+			}
+		}
+		if sb.Len() == 0 {
+			return ""
+		}
+		return sb.String() // note: no trailing reset here; Colorize adds it
+	}
 
-	for _, a := range attrs {
+	// Normal path: both are named colors.
+	var codes []string
+	for _, a := range spec.Attrs {
 		if code, ok := attrCodes[a]; ok {
 			codes = appendUniq(codes, code)
 		}
 	}
-	if bg != "" {
-		// strip leading "on_" for lookup
-		bgKey := strings.TrimPrefix(bg, "on_")
+	if spec.Background != "" {
+		bgKey := strings.TrimPrefix(spec.Background, "on_")
 		if code, ok := bgCodes[bgKey]; ok {
 			codes = appendUniq(codes, code)
-		} else if code, ok := bgCodes[bg]; ok {
+		} else if code, ok := bgCodes[spec.Background]; ok {
 			codes = appendUniq(codes, code)
 		}
 	}
-	if fg != "" {
-		if code, ok := fgCodes[fg]; ok {
+	if spec.Foreground != "" {
+		if code, ok := fgCodes[spec.Foreground]; ok {
 			codes = appendUniq(codes, code)
 		}
 	}
-
 	if len(codes) == 0 {
 		return ""
 	}
@@ -382,207 +453,101 @@ func appendUniq(sl []string, v string) []string {
 	return append(sl, v)
 }
 
-// Colorize wraps text in ANSI escape codes described by the ColorSpec.
-// Returns the plain text if the spec produces no codes.
+// Colorize wraps text in ANSI codes described by spec.
+// Works for both named-color specs and hex-color specs.
 func Colorize(text string, spec ColorSpec) string {
-	open := buildANSI(spec.Foreground, spec.Background, spec.Attrs)
+	open := buildANSI(spec)
 	if open == "" {
 		return text
 	}
 	return open + text + Reset
 }
 
-// ─── Rich markup parser ───────────────────────────────────────────────────────
+// ─── Options ──────────────────────────────────────────────────────────────────
 
-// markupResult holds a parsed markup section.
-type markupResult struct {
-	content string
-	fg      string // may be ANSI raw if hex was used
-	bg      string
-	attrs   []string
-	isFGRaw bool // true if fg is already a raw ANSI sequence
-	isBGRaw bool
-}
-
-var (
-	richPattern   = regexp.MustCompile(`\[([^\[\]]+?)\](.*?)\[/\]`)
-	ansiStripRe   = regexp.MustCompile(`\x1b\[[0-9;]*m`)
-)
-
-const (
-	escapedLeft  = "\x00ESCAPED_LEFT\x00"
-	escapedRight = "\x00ESCAPED_RIGHT\x00"
-)
-
-// parseRichMarkup parses Rich-style markup from text and returns a slice of
-// markup sections. Untagged portions get empty fg/bg.
-func parseRichMarkup(text string) []markupResult {
-	// Pre-process escaped brackets
-	proc := strings.ReplaceAll(text, `\[`, escapedLeft)
-	proc = strings.ReplaceAll(proc, `\]`, escapedRight)
-
-	matches := richPattern.FindAllStringSubmatchIndex(proc, -1)
-	if len(matches) == 0 {
-		final := strings.ReplaceAll(proc, escapedLeft, "[")
-		final = strings.ReplaceAll(final, escapedRight, "]")
-		return []markupResult{{content: final}}
-	}
-
-	var results []markupResult
-
-	for i, match := range matches {
-		// match[0],match[1] = full match
-		// match[2],match[3] = group 1 (markup)
-		// match[4],match[5] = group 2 (content)
-		markup := strings.ToLower(strings.TrimSpace(proc[match[2]:match[3]]))
-		content := proc[match[4]:match[5]]
-
-		// Prepend text before first match
-		if i == 0 && match[0] > 0 {
-			content = proc[:match[0]] + content
-		}
-
-		// Append text after [/] until next match or end
-		afterClose := match[1]
-		var afterText string
-		if i < len(matches)-1 {
-			afterText = proc[afterClose:matches[i+1][0]]
-		} else {
-			afterText = proc[afterClose:]
-		}
-		if afterText != "" {
-			content += afterText
-		}
-
-		// Restore escaped brackets in content
-		content = strings.ReplaceAll(content, escapedLeft, "[")
-		content = strings.ReplaceAll(content, escapedRight, "]")
-
-		res := parseMarkupTag(markup)
-		res.content = content
-		results = append(results, res)
-	}
-
-	return results
-}
-
-// parseMarkupTag parses a markup tag string like "bold red on blue" or
-// "#FF0000 on #00FF00 italic".
-func parseMarkupTag(markup string) markupResult {
-	var res markupResult
-	parts := strings.Fields(markup)
-
-	var colorParts []string
-	for _, p := range parts {
-		found := false
-		for _, attr := range knownAttrs {
-			if p == attr {
-				a := p
-				if a == "strike" {
-					a = "strikethrough"
-				}
-				res.attrs = append(res.attrs, a)
-				found = true
-				break
-			}
-		}
-		if !found {
-			colorParts = append(colorParts, p)
-		}
-	}
-
-	// colorParts may be: ["red"], ["red","on","blue"], ["#FF0000","on","#00FF00"]
-	switch {
-	case len(colorParts) >= 3 && colorParts[1] == "on":
-		res.fg = resolveMarkupColor(colorParts[0], false, &res.isFGRaw)
-		res.bg = resolveMarkupColor(colorParts[2], true, &res.isBGRaw)
-	case len(colorParts) == 1:
-		res.fg = resolveMarkupColor(colorParts[0], false, &res.isFGRaw)
-	}
-
-	return res
-}
-
-// resolveMarkupColor resolves a color token (name or hex) to an ANSI-ready
-// string.  For hex colors it stores a raw ANSI sequence; for named colors it
-// stores the name for normal lookup.
-func resolveMarkupColor(token string, isBG bool, rawFlag *bool) string {
-	if strings.HasPrefix(token, "#") || hexansi.IsHex(token) {
-		result, err := hexansi.Convert(token, hexansi.ModeTrueColor)
-		if err == nil {
-			*rawFlag = true
-			if isBG {
-				return result.BG
-			}
-			return result.FG
-		}
-	}
-	return token
-}
-
-// ─── MakeColors ────────────────────────────────────────────────────────────────
-
-// Options configures a single MakeColors call.
+// Options configures a MakeColors call.
+// Every field is optional — the zero value means "no color / use defaults".
+//
+// Foreground and Background accept:
+//   - Named colors:   "red", "lightblue", "cyan", …
+//   - Abbreviations:  "r", "lb", "c", …
+//   - Hex colors:     "#FF0000", "#F00", "FF0000"
+//   - Combined:       "bold-red-yellow", "lb_r"  (Foreground only)
 type Options struct {
-	Foreground string
-	Background string
-	Attrs      []string
-	Force      bool // force color even when terminal doesn't support it
+	Foreground string   // fg color: name, abbreviation, hex, or combined string
+	Background string   // bg color: name, abbreviation, or hex
+	Attrs      []string // ["bold", "italic", "underline", …]
+	Force      bool     // force ANSI output even when stdout is not a TTY
 }
 
-// DefaultOptions returns sensible defaults.
-func DefaultOptions() Options {
-	return Options{Foreground: "white"}
-}
+// ─── MakeColors ───────────────────────────────────────────────────────────────
 
 // MakeColors applies color formatting to text.
 //
-// It supports:
-//   - Plain text with foreground/background options
-//   - Rich markup: "[bold red on yellow]text[/]"
-//   - Combined format: "bold-red-yellow" as Foreground
-//   - Hex colors inside markup tags
+// Options is variadic — you may omit it entirely:
 //
-// The MAKE_COLORS=0 env var disables output; MAKE_COLORS_FORCE=1 forces it.
-func MakeColors(text string, opts Options) string {
+//	MakeColors("hello")                                    // plain passthrough
+//	MakeColors("hello", Options{Foreground: "red"})        // named color
+//	MakeColors("hello", Options{Foreground: "#00FFFF"})    // hex color
+//	MakeColors("[bold red]hello[/]")                       // rich markup, no Options
+//	MakeColors("[bold red]hello[/]", Options{Force: true}) // markup + force
+//
+// Environment variables:
+//
+//	MAKE_COLORS=0         → disable all output
+//	MAKE_COLORS_FORCE=1   → force output regardless of TTY
+//	MAKE_COLORS_DEBUG=1   → print parsing info to stderr
+func MakeColors(text string, opts ...Options) string {
 	if text == "" {
 		return ""
 	}
+	o := mergeOpts(opts)
 
-	// Rich markup detection
 	if strings.Contains(text, "[") && strings.Contains(text, "[/]") {
-		return applyRichMarkup(text, opts)
+		return applyRichMarkup(text, o)
 	}
-
-	return applyPlain(text, opts)
+	return applyPlain(text, o)
 }
 
-// applyPlain applies color to plain (non-markup) text.
-func applyPlain(text string, opts Options) string {
-	spec := resolveOptions(opts)
+// mergeOpts returns the first Options element, or a zero-value Options if none
+// was provided. Multiple elements are intentionally not merged — only the first
+// is used; the variadic signature purely makes the argument optional.
+func mergeOpts(opts []Options) Options {
+	if len(opts) == 0 {
+		return Options{}
+	}
+	return opts[0]
+}
+
+// applyPlain applies color to non-markup text.
+func applyPlain(text string, o Options) string {
+	// A completely empty Options means no-op (plain text).
+	if o.Foreground == "" && o.Background == "" && len(o.Attrs) == 0 && !o.Force && !colorForced() {
+		if colorDisabled() || !SupportsColor() {
+			return text
+		}
+	}
+
+	fg := o.Foreground
+	if fg == "" && (o.Background != "" || len(o.Attrs) > 0) {
+		fg = "white" // sensible default when only bg/attrs are set
+	}
+
+	spec := GetSort("", fg, o.Background, o.Attrs)
 
 	if debugEnabled() {
 		fmt.Fprintf(os.Stderr, "[DEBUG] applyPlain fg=%q bg=%q attrs=%v\n",
 			spec.Foreground, spec.Background, spec.Attrs)
 	}
 
-	if !shouldColor(opts.Force) {
+	if !shouldColor(o.Force) {
 		return text
 	}
 	return Colorize(text, spec)
 }
 
-// resolveOptions converts an Options into a ColorSpec via GetSort.
-func resolveOptions(opts Options) ColorSpec {
-	fg := opts.Foreground
-	if fg == "" {
-		fg = "white"
-	}
-	return GetSort("", fg, opts.Background, opts.Attrs)
-}
-
 // applyRichMarkup parses and applies rich markup formatting.
-func applyRichMarkup(text string, opts Options) string {
+func applyRichMarkup(text string, o Options) string {
 	sections := parseRichMarkup(text)
 
 	var sb strings.Builder
@@ -593,19 +558,15 @@ func applyRichMarkup(text string, opts Options) string {
 
 		fg := sec.fg
 		if fg == "" {
-			fg = opts.Foreground
-			if fg == "" {
-				fg = "white"
-			}
+			fg = o.Foreground
 		}
 		bg := sec.bg
 		if bg == "" {
-			bg = opts.Background
+			bg = o.Background
 		}
 
 		var colored string
 		if sec.isFGRaw || sec.isBGRaw {
-			// Raw ANSI already computed (hex colors)
 			colored = applyRawANSI(sec.content, sec.fg, sec.isFGRaw, sec.bg, sec.isBGRaw, sec.attrs)
 		} else {
 			spec := GetSort("", fg, bg, sec.attrs)
@@ -615,20 +576,18 @@ func applyRichMarkup(text string, opts Options) string {
 	}
 
 	output := sb.String()
-	if !shouldColor(opts.Force) {
+	if !shouldColor(o.Force) {
 		return ansiStripRe.ReplaceAllString(output, "")
 	}
 	return output
 }
 
 // applyRawANSI combines raw ANSI fg/bg sequences with attribute codes.
+// Used when hex colors were resolved to raw sequences during markup parsing.
 func applyRawANSI(text, fgRaw string, hasFG bool, bgRaw string, hasBG bool, attrs []string) string {
 	var sb strings.Builder
-
-	// Attribute codes
 	for _, a := range attrs {
 		if code, ok := attrCodes[a]; ok {
-			// Inject into stream
 			sb.WriteString("\x1b[" + code + "m")
 		}
 	}
@@ -643,7 +602,6 @@ func applyRawANSI(text, fgRaw string, hasFG bool, bgRaw string, hasBG bool, attr
 	return sb.String()
 }
 
-// shouldColor decides whether to emit ANSI codes for this call.
 func shouldColor(force bool) bool {
 	if force || colorForced() {
 		return true
@@ -654,12 +612,128 @@ func shouldColor(force bool) bool {
 	return SupportsColor()
 }
 
-// ─── Convenience helpers ───────────────────────────────────────────────────────
+// ─── Rich markup parser ───────────────────────────────────────────────────────
+
+type markupResult struct {
+	content  string
+	fg       string
+	bg       string
+	attrs    []string
+	isFGRaw  bool
+	isBGRaw  bool
+}
+
+var (
+	richPattern = regexp.MustCompile(`\[([^\[\]]+?)\](.*?)\[/\]`)
+	ansiStripRe = regexp.MustCompile(`\x1b\[[0-9;]*m`)
+)
+
+const (
+	escapedLeft  = "\x00ESCAPED_LEFT\x00"
+	escapedRight = "\x00ESCAPED_RIGHT\x00"
+)
+
+func parseRichMarkup(text string) []markupResult {
+	proc := strings.ReplaceAll(text, `\[`, escapedLeft)
+	proc = strings.ReplaceAll(proc, `\]`, escapedRight)
+
+	matches := richPattern.FindAllStringSubmatchIndex(proc, -1)
+	if len(matches) == 0 {
+		final := strings.ReplaceAll(proc, escapedLeft, "[")
+		final = strings.ReplaceAll(final, escapedRight, "]")
+		return []markupResult{{content: final}}
+	}
+
+	var results []markupResult
+	for i, match := range matches {
+		markup := strings.ToLower(strings.TrimSpace(proc[match[2]:match[3]]))
+		content := proc[match[4]:match[5]]
+
+		if i == 0 && match[0] > 0 {
+			content = proc[:match[0]] + content
+		}
+
+		afterClose := match[1]
+		var afterText string
+		if i < len(matches)-1 {
+			afterText = proc[afterClose:matches[i+1][0]]
+		} else {
+			afterText = proc[afterClose:]
+		}
+		if afterText != "" {
+			content += afterText
+		}
+
+		content = strings.ReplaceAll(content, escapedLeft, "[")
+		content = strings.ReplaceAll(content, escapedRight, "]")
+
+		res := parseMarkupTag(markup)
+		res.content = content
+		results = append(results, res)
+	}
+	return results
+}
+
+func parseMarkupTag(markup string) markupResult {
+	var res markupResult
+	parts := strings.Fields(markup)
+
+	var colorParts []string
+	for _, p := range parts {
+		isAttr := false
+		for _, attr := range knownAttrs {
+			if p == attr {
+				a := p
+				if a == "strike" {
+					a = "strikethrough"
+				}
+				res.attrs = append(res.attrs, a)
+				isAttr = true
+				break
+			}
+		}
+		if !isAttr {
+			colorParts = append(colorParts, p)
+		}
+	}
+
+	switch {
+	case len(colorParts) >= 3 && colorParts[1] == "on":
+		res.fg = resolveMarkupColor(colorParts[0], false, &res.isFGRaw)
+		res.bg = resolveMarkupColor(colorParts[2], true, &res.isBGRaw)
+	case len(colorParts) == 1:
+		res.fg = resolveMarkupColor(colorParts[0], false, &res.isFGRaw)
+	}
+
+	return res
+}
+
+func resolveMarkupColor(token string, isBG bool, rawFlag *bool) string {
+	if isHexColor(token) {
+		res, err := hexansi.Convert(token, hexansi.ModeTrueColor)
+		if err == nil {
+			*rawFlag = true
+			if isBG {
+				return res.BG
+			}
+			return res.FG
+		}
+	}
+	return token
+}
+
+// ─── Convenience functions ────────────────────────────────────────────────────
 
 // Make is the shortest alias for MakeColors.
-func Make(text string, opts Options) string { return MakeColors(text, opts) }
+func Make(text string, opts ...Options) string { return MakeColors(text, opts...) }
 
-// Sprint returns text colored with the given foreground (and optional background).
+// Sprint returns colored text: Sprint(text, fg, bg, attrs...).
+// fg and bg may be named colors, abbreviations, or hex strings.
+//
+//	Sprint("hello", "red", "")
+//	Sprint("hello", "#FF0000", "#000000")
+//	Sprint("hello", "bold-red", "")
+//	Sprint("hello", "red", "", "bold", "underline")
 func Sprint(text, foreground, background string, attrs ...string) string {
 	return MakeColors(text, Options{
 		Foreground: foreground,
@@ -668,86 +742,38 @@ func Sprint(text, foreground, background string, attrs ...string) string {
 	})
 }
 
-// Sprintf formats and colors text. The color spec is applied to the entire result.
+// Sprintf formats then colorizes: Sprintf(fg, bg, attrs, format, args...).
 func Sprintf(foreground, background string, attrs []string, format string, a ...interface{}) string {
 	return Sprint(fmt.Sprintf(format, a...), foreground, background, attrs...)
 }
 
-// Fprintln writes a colored line to the given writer.
-func Fprintln(w interface{ WriteString(string) (int, error) }, text, foreground, background string, attrs ...string) {
-	s := Sprint(text, foreground, background, attrs...)
-	w.WriteString(s + "\n") //nolint:errcheck
-}
-
-// Println prints colored text followed by a newline to stdout.
+// Println prints colored text + newline to stdout.
 func Println(text, foreground, background string, attrs ...string) {
 	fmt.Println(Sprint(text, foreground, background, attrs...))
 }
 
-// StripANSI removes all ANSI escape sequences from a string.
-func StripANSI(s string) string {
-	return ansiStripRe.ReplaceAllString(s, "")
-}
+// StripANSI removes all ANSI escape sequences from s.
+func StripANSI(s string) string { return ansiStripRe.ReplaceAllString(s, "") }
 
-// ─── Functional color helpers ─────────────────────────────────────────────────
-// These mirror the dynamically-generated Python functions.
+// ─── Single-color helper functions ────────────────────────────────────────────
 
-// Red returns text in red.
-func Red(text string) string { return Sprint(text, "red", "") }
-
-// Green returns text in green.
-func Green(text string) string { return Sprint(text, "green", "") }
-
-// Blue returns text in blue.
-func Blue(text string) string { return Sprint(text, "blue", "") }
-
-// Yellow returns text in yellow.
-func Yellow(text string) string { return Sprint(text, "yellow", "") }
-
-// Magenta returns text in magenta.
-func Magenta(text string) string { return Sprint(text, "magenta", "") }
-
-// Cyan returns text in cyan.
-func Cyan(text string) string { return Sprint(text, "cyan", "") }
-
-// White returns text in white.
-func White(text string) string { return Sprint(text, "white", "") }
-
-// Black returns text in black (visible on light backgrounds).
-func Black(text string) string { return Sprint(text, "black", "") }
-
-// LightRed returns text in light red.
-func LightRed(text string) string { return Sprint(text, "lightred", "") }
-
-// LightGreen returns text in light green.
-func LightGreen(text string) string { return Sprint(text, "lightgreen", "") }
-
-// LightBlue returns text in light blue.
-func LightBlue(text string) string { return Sprint(text, "lightblue", "") }
-
-// LightYellow returns text in light yellow.
-func LightYellow(text string) string { return Sprint(text, "lightyellow", "") }
-
-// LightMagenta returns text in light magenta.
+func Red(text string) string          { return Sprint(text, "red", "") }
+func Green(text string) string        { return Sprint(text, "green", "") }
+func Blue(text string) string         { return Sprint(text, "blue", "") }
+func Yellow(text string) string       { return Sprint(text, "yellow", "") }
+func Magenta(text string) string      { return Sprint(text, "magenta", "") }
+func Cyan(text string) string         { return Sprint(text, "cyan", "") }
+func White(text string) string        { return Sprint(text, "white", "") }
+func Black(text string) string        { return Sprint(text, "black", "") }
+func LightRed(text string) string     { return Sprint(text, "lightred", "") }
+func LightGreen(text string) string   { return Sprint(text, "lightgreen", "") }
+func LightBlue(text string) string    { return Sprint(text, "lightblue", "") }
+func LightYellow(text string) string  { return Sprint(text, "lightyellow", "") }
 func LightMagenta(text string) string { return Sprint(text, "lightmagenta", "") }
-
-// LightCyan returns text in light cyan.
-func LightCyan(text string) string { return Sprint(text, "lightcyan", "") }
-
-// LightWhite returns text in light white.
-func LightWhite(text string) string { return Sprint(text, "lightwhite", "") }
-
-// Bold returns text with bold attribute.
-func Bold(text string) string { return Sprint(text, "white", "", "bold") }
-
-// Dim returns text with dim attribute.
-func Dim(text string) string { return Sprint(text, "white", "", "dim") }
-
-// Italic returns text with italic attribute.
-func Italic(text string) string { return Sprint(text, "white", "", "italic") }
-
-// Underline returns text with underline attribute.
-func Underline(text string) string { return Sprint(text, "white", "", "underline") }
-
-// Strikethrough returns text with strikethrough attribute.
+func LightCyan(text string) string    { return Sprint(text, "lightcyan", "") }
+func LightWhite(text string) string   { return Sprint(text, "lightwhite", "") }
+func Bold(text string) string         { return Sprint(text, "white", "", "bold") }
+func Dim(text string) string          { return Sprint(text, "white", "", "dim") }
+func Italic(text string) string       { return Sprint(text, "white", "", "italic") }
+func Underline(text string) string    { return Sprint(text, "white", "", "underline") }
 func Strikethrough(text string) string { return Sprint(text, "white", "", "strikethrough") }
