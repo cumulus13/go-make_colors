@@ -28,15 +28,15 @@ const (
 
 // Options configures a Syntax highlighting operation.
 type Options struct {
-	Lexer           string         // language name or "auto"
-	Theme           string         // Chroma style name (default: "monokai")
-	LineNumbers     LineNumberMode
-	StartLine       int    // first line number when LineNumberAbsolute (default: 1)
-	TabSize         int    // spaces per tab (default: 4)
-	CodeWidth       int    // max column width for wrapping (0 = disabled)
-	WordWrap        bool
-	HighlightLines  []int  // 1-based line numbers to highlight
-	TrueColor       bool   // use truecolor formatter (vs 256-color)
+	Lexer          string         // language name or "auto"
+	Theme          string         // Chroma style name (default: "monokai")
+	LineNumbers    LineNumberMode
+	StartLine      int   // first line number when LineNumberAbsolute (default: 1)
+	TabSize        int   // spaces per tab (default: 4)
+	CodeWidth      int   // max column width for wrapping (0 = disabled)
+	WordWrap       bool
+	HighlightLines []int // 1-based line numbers to highlight
+	TrueColor      bool  // use truecolor formatter (vs 256-color)
 }
 
 // DefaultOptions returns sensible defaults.
@@ -78,13 +78,14 @@ func (s *Syntax) Highlight() (string, error) {
 	style := resolveStyle(s.opts.Theme)
 	formatter := resolveFormatter(s.opts.TrueColor)
 
-	tokens, err := chroma.Tokenise(lexer, nil, s.code)
+	// Chroma v2: lexer.Tokenise() returns an Iterator, not []Token.
+	iter, err := lexer.Tokenise(nil, s.code)
 	if err != nil {
 		return "", fmt.Errorf("syntax: tokenise: %w", err)
 	}
 
 	var sb strings.Builder
-	if err := formatter.Format(&sb, style, tokens); err != nil {
+	if err := formatter.Format(&sb, style, iter); err != nil {
 		return "", fmt.Errorf("syntax: format: %w", err)
 	}
 
@@ -137,9 +138,9 @@ func AvailableThemes() []string {
 	return styles.Names()
 }
 
-// AvailableLexers returns a sorted list of all Chroma lexer names.
+// AvailableLexers returns a list of all Chroma lexer names.
 func AvailableLexers() []string {
-	names := []string{}
+	var names []string
 	for _, l := range lexers.GlobalLexerRegistry.Lexers {
 		names = append(names, l.Config().Name)
 	}
@@ -185,7 +186,7 @@ func resolveFormatter(trueColor bool) chroma.Formatter {
 
 func addLineNumbers(highlighted string, opts Options) string {
 	lines := strings.Split(highlighted, "\n")
-	// Chroma typically adds a trailing newline; trim it for consistent counting.
+	// Chroma typically appends a trailing newline; trim it for clean counting.
 	if len(lines) > 0 && lines[len(lines)-1] == "" {
 		lines = lines[:len(lines)-1]
 	}
@@ -198,7 +199,6 @@ func addLineNumbers(highlighted string, opts Options) string {
 		lineNum := opts.StartLine + i
 		prefix := fmt.Sprintf(fmtStr, lineNum)
 
-		// Highlight marker
 		if contains(opts.HighlightLines, lineNum) {
 			prefix = "\x1b[1;41m" + prefix + "\x1b[0m"
 		}
